@@ -283,6 +283,7 @@ class CropTrendsResponse(BaseModel):
     timeframe: str
     crops_analyzed: List[str]
     trends: List[CropTrendPoint]
+    timeline: Optional[List[CropTrendPoint]] = None
     summary_by_crop: Dict[str, Dict[str, Any]]
 
 

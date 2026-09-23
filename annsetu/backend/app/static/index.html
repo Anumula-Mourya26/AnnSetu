@@ -2001,7 +2001,11 @@
           loadProcurementSignals();
           loadScheduleHistory();
           loadCropTrends();
-          setTimeout(() => window.dispatchEvent(new Event('resize')), 150);
+          setTimeout(() => {
+            window.dispatchEvent(new Event('resize'));
+            if (cropVolumeChartInstance) cropVolumeChartInstance.resize();
+            if (cropValueChartInstance) cropValueChartInstance.resize();
+          }, 150);
         } else if (subview === 'profile') {
           renderVendorProfile();
         }
@@ -3760,7 +3764,7 @@
     }
 
     async function loadCropTrends(centreId) {
-      const cId = centreId || vendorCurrentCentreId;
+      const cId = centreId || vendorCurrentCentreId || (currentUser ? currentUser.centre_id : null);
       const cropSelect = document.getElementById('trend-crop-select');
       const cropVal = cropSelect ? cropSelect.value : '';
 
@@ -3816,8 +3820,8 @@
     function renderCropTrendCharts(data) {
       if (typeof Chart === 'undefined') return;
 
-      const timeline = data.timeline || [];
-      const periods = [...new Set(timeline.map(p => p.period))];
+      const timeline = data.trends || data.timeline || [];
+      const periods = [...new Set(timeline.map(p => p.period))].sort();
       const crops = [...new Set(timeline.map(p => p.crop_name))];
 
       const labels = periods.length > 0 ? periods : ['No data'];
@@ -3842,11 +3846,14 @@
         backgroundColor: 'rgba(203, 213, 225, 0.5)'
       }];
 
-      if (cropVolumeChartInstance) {
-        cropVolumeChartInstance.destroy();
-      }
       const volCanvas = document.getElementById('cropVolumeChart');
       if (volCanvas) {
+        if (typeof Chart.getChart === 'function') {
+          const existing = Chart.getChart(volCanvas);
+          if (existing) existing.destroy();
+        } else if (cropVolumeChartInstance) {
+          cropVolumeChartInstance.destroy();
+        }
         cropVolumeChartInstance = new Chart(volCanvas.getContext('2d'), {
           type: 'bar',
           data: {
@@ -3861,15 +3868,22 @@
               y: { stacked: true, beginAtZero: true, title: { display: true, text: 'Quintals (Q)' } }
             },
             plugins: {
-              legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11, weight: 'bold' } } }
+              legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11, weight: 'bold' } } },
+              tooltip: {
+                callbacks: {
+                  label: function(context) {
+                    return ` ${context.dataset.label}: ${context.raw ? context.raw.toLocaleString('en-IN') : 0} Q`;
+                  }
+                }
+              }
             }
           }
         });
       }
 
-      // Value Chart (Line Area)
+      // Value Chart (Clean Multi-Line Trend Chart)
       const valueDatasets = crops.length > 0 ? crops.map(cName => {
-        const color = CROP_CHART_COLORS[cName] || { bar: 'rgba(59, 130, 246, 0.7)', border: '#3B82F6' };
+        const color = CROP_CHART_COLORS[cName] || { bar: 'rgba(59, 130, 246, 0.1)', border: '#3B82F6' };
         return {
           label: `${cName} Value (₹)`,
           data: periods.map(p => {
@@ -3877,10 +3891,12 @@
             return match ? match.estimated_value : 0;
           }),
           borderColor: color.border,
-          backgroundColor: color.bar,
-          fill: true,
+          backgroundColor: color.border,
+          fill: false,
           tension: 0.3,
-          borderWidth: 2
+          borderWidth: 2.5,
+          pointRadius: 4,
+          pointHoverRadius: 6
         };
       }) : [{
         label: 'Value (₹)',
@@ -3888,11 +3904,14 @@
         borderColor: '#CBD5E1'
       }];
 
-      if (cropValueChartInstance) {
-        cropValueChartInstance.destroy();
-      }
       const valCanvas = document.getElementById('cropValueChart');
       if (valCanvas) {
+        if (typeof Chart.getChart === 'function') {
+          const existing = Chart.getChart(valCanvas);
+          if (existing) existing.destroy();
+        } else if (cropValueChartInstance) {
+          cropValueChartInstance.destroy();
+        }
         cropValueChartInstance = new Chart(valCanvas.getContext('2d'), {
           type: 'line',
           data: {
@@ -3915,7 +3934,14 @@
               }
             },
             plugins: {
-              legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11, weight: 'bold' } } }
+              legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11, weight: 'bold' } } },
+              tooltip: {
+                callbacks: {
+                  label: function(context) {
+                    return ` ${context.dataset.label}: ₹${Math.round(context.raw || 0).toLocaleString('en-IN')}`;
+                  }
+                }
+              }
             }
           }
         });

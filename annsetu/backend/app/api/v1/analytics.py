@@ -131,6 +131,7 @@ async def get_crop_trends(
         timeframe=timeframe,
         crops_analyzed=sorted(list(crops_seen)),
         trends=trend_points,
+        timeline=trend_points,
         summary_by_crop=summary_map,
     )
 
