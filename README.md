@@ -46,6 +46,7 @@ Populate the database with pre-configured Punjab & MP mandi centres (Khanna Grai
 python seed.py
 ```
 
+
 ### 4. Run Automated Tests
 ```bash
 python -m pytest -v
